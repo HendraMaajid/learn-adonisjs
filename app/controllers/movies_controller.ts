@@ -5,7 +5,16 @@ import Movie from '#models/movie'
 export default class MoviesController {
   async index({ view }: HttpContext) {
     const movies = await Movie.all()
-    return view.render('pages/home', { movies })
+    const recentlyReleased = await Movie.query()
+      .apply((scope) => scope.released())
+      .orderBy('release_at', 'desc')
+      .limit(9)
+    const comingSoon = await Movie.query()
+      .apply((scope) => scope.notReleased())
+      .whereNotNull('releaseAt')
+      .orderBy('release_at', 'asc')
+      .limit(3)
+    return view.render('pages/home', { recentlyReleased, comingSoon })
   }
 
   async show({ view, params }: HttpContext) {

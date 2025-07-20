@@ -1,5 +1,8 @@
-import { BaseModel, column } from '@adonisjs/lucid/orm'
+import { BaseModel, beforeCreate, column, scope } from '@adonisjs/lucid/orm'
 import { DateTime } from 'luxon'
+import MovieStatus from './movie_status.js'
+import MovieStatuses from '#enums/movie_statuses'
+import string from '@adonisjs/core/helpers/string'
 
 export default class Movie extends BaseModel {
   @column({ isPrimary: true })
@@ -37,4 +40,62 @@ export default class Movie extends BaseModel {
 
   @column.dateTime()
   declare releaseAt: DateTime | null
+
+  @beforeCreate()
+  static async setSlug(movie: Movie) {
+    if (movie.slug) return
+
+    const slug = string.slug(movie.title, {
+      replacement: '-',
+      lower: true,
+      strict: true,
+    })
+
+    const rows = await Movie.query()
+      .select('slug')
+      .whereRaw('lower(??) = ?', ['slug', slug])
+      .orWhereRaw('lower(??) LIKE ?', ['slug', `${slug}-%`])
+
+    if (!rows.length) {
+      movie.slug = slug
+      return
+    }
+
+    const incrementors = rows.reduce<number[]>((result, row) => {
+      const token = row.slug.toLowerCase().split(`${slug}-`)
+
+      if (token.length < 2) {
+        return result
+      }
+
+      const increment = Number(token.at(1))
+
+      if (!Number.isNaN(increment)) {
+        result.push(increment)
+      }
+
+      return result
+    }, [])
+
+    const increment = incrementors.length ? Math.max(...incrementors) + 1 : 1
+
+    movie.slug = `${slug}-${increment}`
+  }
+
+  static released = scope((query) => {
+    query.where((group) =>
+      group
+        .where('statusId', MovieStatuses.RELEASED)
+        .whereNotNull('releaseAt')
+        .where('releaseAt', '<=', DateTime.now().toSQL())
+    )
+  })
+  static notReleased = scope((query) => {
+    query.where((group) =>
+      group
+        .whereNot('statusId', MovieStatuses.RELEASED)
+        .orWhereNotNull('releaseAt')
+        .orWhere('releaseAt', '>', DateTime.now().toSQL())
+    )
+  })
 }

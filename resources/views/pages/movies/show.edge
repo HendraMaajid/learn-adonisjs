@@ -6,9 +6,9 @@
     <h1>
         {{ movie.title }}
     </h1>
-    @if (movie.abstract)
+    @if (movie.synopsis)
         <div class="my-8 bg-slate-100 rounded-xl p-8">
-            {{{ movie.abstract }}}
+            {{{ movie.synopsis }}}
         </div>
     @else
         No Abstract
