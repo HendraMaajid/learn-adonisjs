@@ -111,7 +111,7 @@ export default class Movie extends BaseModel {
     query.where((group) =>
       group
         .whereNot('statusId', MovieStatuses.RELEASED)
-        .orWhereNotNull('releaseAt')
+        .whereNotNull('releaseAt')
         .orWhere('releaseAt', '>', DateTime.now().toSQL())
     )
   })
